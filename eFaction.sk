@@ -1,0 +1,1217 @@
+Options:
+    P: &2[Faction]
+    sP: &7[&6CraftPiece&7] &f
+
+    Faction-Create-WordBlocked: "Fuck" or "FuckYou" or "Spawn" or "Warzone" or "<" or ">"
+    Faction-Desc-WordBlocked: "Fuck" or "FuckYou"
+    Faction-Claim-Price: 50000
+
+# on load:
+    # loop all players:
+        # add 5000000 to {berries.%loop-player%}
+#         delete {eFaction::Player::%loop-player%::Faction}
+#     delete {eFaction::Faction::xHayaaa::Membres::*}
+
+On command:
+    if sender is console:
+        stop
+    if player is op:
+        if {Combat.Time.%player%} is set:
+            send "{@P} &cVous êtes en combat ! &7(Commandes <tooltip:&aAction autorisé avec vos permissions>&cdésactivés*<reset>&7)"
+        stop
+    if {Combat.Time.%player%} is set:
+        send "{@P} &cVous êtes en combat ! &7(Commandes désactivés)"
+        cancel event
+
+On join:
+    if {eFaction::Player::%player%::Power} isn't set:
+        set {eFaction::Player::%player%::Power} to 10
+    while player is online:
+        wait 10 minutes
+        if {eFaction::Player::%player%::Power} < 10:
+            add 1 to {eFaction::Player::%player%::Power}
+            set action bar of player to "{@P} &a+1 Power &7(10m)"
+            set {_f} to {eFaction::Player::%player%::Faction}
+            delete {_Power}
+            loop {eFaction::Faction::%{_f}%::Membres::*}:
+                add {eFaction::Player::%loop-value%::Power} to {_Power}
+            set {eFaction::Faction::%{_f}%::FPower} to {_Power}
+
+On chat:
+    cancel event
+    if {eFaction::Player::%player%::Faction} isn't set:
+        if {eFaction::Player::%player%::FactionChat} isn't set:
+            broadcast "&7[&f%{eFaction::Player::%player%::Faction}?"&aWilderness"%&7] &e%{eFaction::Player::%player%::FactionRank}?""% &f%player%&7: &7%message%"
+        else if {eFaction::Player::%player%::FactionChat} is "Faction":
+            set {_f} to {eFaction::Player::%player%::Faction}
+            send "&2[FactionChat] &f%{eFaction::Player::%player%::FactionRank}% %player%&7: &2%message%" to {eFaction::Faction::%{_f}%::Membres::*}
+        else if {eFaction::Player::%player%::FactionChat} is "Ally":
+            set {_f} to {eFaction::Player::%player%::Faction}
+            loop {eFaction::Faction::%{_f}%::Ally::*}:
+                send "&a[AllyChat] &7(%{_f}%) &f%{eFaction::Player::%player%::FactionRank}% %player%&7: &a%message%" to {eFaction::Faction::%loop-value%::Membres::*}
+            send "&a[AllyChat] &f%{eFaction::Player::%player%::FactionRank}% %player%&7: &2%message%" to {eFaction::Faction::%{_f}%::Membres::*}
+
+        else:
+            delete {eFaction::Player::%player%::FactionChat}
+            broadcast "&7[&f%{eFaction::Player::%player%::Faction}?"&aWilderness"%&7] &e%{eFaction::Player::%player%::FactionRank}?""% &f%player%&7: &7%message%"
+    else:
+        broadcast "&7[&f&aWilderness&7] &f%player%&7: &7%message%"
+
+On damage:
+    victim is a player
+    attacker is a player
+    if {eFaction::Claims::%chunk at attacker's location%} is "&2Spawn":
+        cancel event
+        send "{@P} &fPvP désactivé !" to attacker
+        stop
+    if {eFaction::Player::%attacker%::Faction} is {eFaction::Player::%victim%::Faction}:
+        cancel event
+        send "{@P} &fVous êtes dans la même faction !" to attacker
+        stop
+    if {eFaction::Faction::%{eFaction::Player::%attacker%::Faction}%::Ally::*} contains {eFaction::Player::%attacker%::Faction}:
+        cancel event
+        send "{@P} &fVous êtes en alliance !" to attacker
+        stop
+    if {eFaction::Claims::%chunk at victim's location%} is {eFaction::Player::%victim%::Faction}:
+        if {eFaction::Faction::%{eFaction::Player::%attacker%::Faction}%::Enemy::*} contains {eFaction::Player::%victim%::Faction}:
+            set {_x} to true
+        else:
+            send "{@P} &fVous devez avoir cette faction en &cEnemy &f! &7(/f enemy)" to attacker
+            send "{@P} &e%attacker% &fa essayé de vous taper !" to victim
+            cancel event
+            stop
+    if {Combat.Time.%attacker%} is set:
+        UpdateTime(attacker, attacker)
+    else:
+        TimeDamage(attacker, victim)
+    if {Combat.Time.%victim%} is set:
+        UpdateTime(victim, attacker)
+    else:
+        TimeDamage(victim, attacker)
+
+On death:
+    victim is a player
+    # attacker is a player
+    heal victim
+    if {eFaction::Player::%victim%::Power} >= -10:
+        remove 2 from {eFaction::Player::%victim%::Power}
+    set action bar of victim to "{@P} &c-2 Power &7(Mort)"
+    set {_f} to {eFaction::Player::%victim%::Faction}
+    loop {eFaction::Faction::%{_f}%::Membres::*}:
+        add {eFaction::Player::%loop-value%::Power} to {_Power}
+    set {eFaction::Faction::%{_f}%::FPower} to {_Power}
+
+On place:
+    if player is OP:
+        if player's gamemode is creative:
+            stop
+    if {eFaction::Claims::%chunk at event-block's location%} is set:
+        if {eFaction::Claims::%chunk at event-block's location%} isn't {eFaction::Player::%player%::Faction}:
+            cancel event
+            send "{@P} &fCette zone appartient à &e%{eFaction::Claims::%chunk at event-block's location%}% &f!"
+
+On break:
+    if player is OP:
+        if player's gamemode is creative:
+            stop
+    if {eFaction::Claims::%chunk at event-block's location%} is set:
+        if {eFaction::Claims::%chunk at event-block's location%} isn't {eFaction::Player::%player%::Faction}:
+            cancel event
+            send "{@P} &fCette zone appartient à &e%{eFaction::Claims::%chunk at event-block's location%}% &f!"
+
+On right click:
+    if player is OP:
+        if player's gamemode is creative:
+            stop
+    if {eFaction::Claims::%chunk at player's location%} is set:
+        if {eFaction::Claims::%chunk at player's location%} isn't {eFaction::Player::%player%::Faction}:
+            cancel event
+            send "{@P} &fCette zone appartient à &e%{eFaction::Claims::%chunk at player's location%}% &f!"
+
+# On left click:
+#     if {eFaction::Claims::%chunk at player's location%} is set:
+#         if {eFaction::Claims::%chunk at player's location%} isn't {eFaction::Player::%player%::Faction}:
+#             cancel event
+#             send "{@P} &fCe zone appartient à &e%{eFaction::Claims::%chunk at player's location%}% &f!"
+
+on physics:
+    if event-block is wheat plant or carrot block or potato block:
+        cancel event
+        wait 5 ticks
+        set the block below the event-block to farmland
+        stop
+    if event-block is farmland:
+        cancel event
+        stop
+
+function F_Help(p: player):
+    send formatted "<tooltip:&aPlus d'informations><cmd:/f credit>{@P} &fCommandes d'aides 1/2&7:<reset>" to {_p}
+    send "" to {_p}
+    send "&a● &f/f create &c(Nom) &7- &7Créer votre faction" to {_p}
+    send "&a● &f/f disband &7- &7Dissoudre votre faction" to {_p}
+    send "&a● &f/f show &e[player/faction] &7- &7Afficher une faction" to {_p}
+    send "&a● &f/f toggle &c(invite, ...) &7- &7Modifier tes préferences" to {_p}
+    send "" to {_p}
+    send "&e[]&7 = optionel &f& &c() &7= obligatoire" to {_p}
+    send formatted "<tooltip:&6Aide 2/2><cmd:/f help2>&8[Commandes d'aide 2/2]<reset>" to {_p}
+
+function F_Help_Admin(p: player):
+    send formatted "<tooltip:&aPlus d'informations><cmd:/f credit>{@P} &fCommandes d'aides 1/2&7:<reset>" to {_p}
+    send "" to {_p}
+    send "&a● &f/f admin disband &7- &7Dissoudre une faction" to {_p}
+    send "" to {_p}
+    send "&e[]&7 = optionel &f& &c() &7= obligatoire" to {_p}
+    send formatted "<tooltip:&6Aide 1/2><cmd:/f help>&8[Commandes d'aide 1/2]<reset>" to {_p}
+
+function GetNumber(n: number) :: string:
+	if {_n} >= 1000000000:
+		set {_number} to "%{_n}/1000000000%&fB"
+	else if {_n} >= 1000000:
+		set {_number} to "%{_n}/1000000%&fM"
+	else if {_n} >= 1000:
+		set {_number} to "%{_n}/1000%&fK"
+	else if {_n} >= 1:
+		set {_number} to "%{_n}%"
+	else:
+		set {_number} to "0"
+	# broadcast "%{_number}%"
+	# broadcast "%{_n}%"
+	return {_number}
+
+Function TimeDamage(p: player, d: player):
+	if {Combat.Time.%{_p}%} isn't set:
+		send "{@P} &cVous êtes actuellement en combat !" to {_p}
+		send "" to {_p}
+		send "&cVotre oppposant est &f%{_d}%&c." to {_p}
+		send "" to {_p}
+		send "&4&lNE DECONNECTEZ PAS !" to {_p}
+		set {Combat.Time.%{_p}%.Attacker} to {_d}
+		set {Combat.Time.%{_p}%} to now
+		while {Combat.Time.%{_p}%} is set:
+			set {_Cooldown} to difference between {Combat.Time.%{_p}%} and now
+			if {_Cooldown} is less or equal to 30 seconds:
+				set {_MessageCooldown} to "Vous êtes en combat ! &7(%difference between 30 seconds and {_Cooldown}%)"
+				replace "second" with "seconde" in {_MessageCooldown}
+				replace "hour" with "heure" in {_MessageCooldown}
+				replace "day" with "jour" in {_MessageCooldown}
+				replace "month" with "mois" in {_MessageCooldown}
+				replace "year" with "an" in {_MessageCooldown}
+				replace "seconds" with "secondes" in {_MessageCooldown}
+				replace "hours" with "heures" in {_MessageCooldown}
+				replace "days" with "jours" in {_MessageCooldown}
+				replace "months" with "mois" in {_MessageCooldown}
+				replace "years" with "ans" in {_MessageCooldown}
+				replace " and" with "," in {_MessageCooldown}
+				set action bar of {_p} to "%{_MessageCooldown}%"
+				wait 5 seconds
+			else:
+				set action bar of {_p} to "&c&oVous n'êtes plus en combat !"
+				delete {Combat.Time.%{_p}%}
+
+Function UpdateTime(p: player, d: player):
+	if {Combat.Time.%{_p}%} is set:
+		set {Combat.Time.%{_p}%} to now
+	set {Combat.Time.%{_p}%.Attacker} to {_d}
+
+Command /f [<text=help>] [<text>] [<text>] [<text>]:
+    aliases: e, equipage, faction
+    trigger:
+        if arg 1 is "help":
+            F_Help(player)
+        else if arg 1 is "help2":
+            send formatted "<tooltip:&aPlus d'informations><cmd:/f credit>{@P} &fCommandes d'aides 2/2&7:<reset>"            
+            send ""
+            send "&a● &f/f chat/c &e[cannal] &7- &7Choisir le cannal de discussion"
+            send "&a● &f/f invite &c(player) &7- &7Inviter un membre"
+            send "&a● &f/f join &c(faction) &7- &7Rejoindre une faction"
+            send "&a● &f/f leave &7- &7Quitter votre faction"
+            send "&a● &f/f map &7- &7Afficher les chunks autour de vous"
+            send "&a● &f/f shop &7- &7Items &7&nspéciaux"
+            send "&a● &f/f deposit/dep &c(nombre) &7- &7Ajouter de l'argent à la faction"
+            send "&a● &f/f withdraw/wtd &c(nombre) &7- &7Retirer de l'argent de la faction"
+            send "&a● &f/f kick &c(player) &7- &7Ejecter un membre"
+            send "&a● &f/f lead &c(player) &7- &7Changer le Capitaine de la faction"
+            send "&a● &f/f promote &c(player) &7- &7Promouvoir un membre"
+            send "&a● &f/f demote &c(player) &7- &7Dégradé un membre"
+            if player is op:
+                send "&a● &f/f claim &e[-s (Spawn), -w (Warzone)]&7- &7Acheter cette zone"
+                send "&a● &f/f unclaim/uc &e[-s (Spawn), -w (Warzone), -b (Bypass)]&7- &7Vendre cette zone"
+            else:
+                send "&a● &f/f claim &7- &7Acheter cette zone"
+                send "&a● &f/f unclaim/uc &7- &7Vendre cette zone"
+            send "&a● &f/f home &7- &7Téléportation au home de faction" #x
+            send "&a● &f/f sethome/sh &7- &7Définir l'home de fation" #x
+            send "&a● &f/f description/desc &c(description) &7- &7Modifier la description"
+            send "&a● &f/f ally &c(faction) &7- &7Demander une relation d'alliance" #x Demande 30s pour accepter
+            send "&a● &f/f neutral &c(faction) &7- &7Relation neutre avec cette faction" #x Demander d'annulation d'ally qu'un faction si on le sont, sinon enemy direct en neutral
+            send "&a● &f/f enemy &c(faction) &7- &7Mettre la relation Ennemi avec cette faction" #x Certaines actions sont activés si vous les avez en enemey (Taper dans leur claim mais accès qu'au /spawn dans les commandes de TP) ect
+            #Vous verrez que les enemys que vous avez choisi mais si vous sont en enemy, ça ne sera 100% Enemy
+            send ""
+            send "&e[]&7 = optionel &f& &c() &7= obligatoire"
+            send formatted "<tooltip:&6Aide 1/2><cmd:/f help>&8[Commandes d'aides 1/2]<reset>"
+            if player is op:
+                send formatted "<tooltip:&eAdmin Help 1/1><cmd:/f admin help>&5[Commandes d'aides 1/1]<reset>"
+        else if arg 1 is "admin":
+            if player is op:
+                if arg 2 isn't set:
+                    F_Help_Admin(player)
+                else if arg 2 is "help":
+                    F_Help_Admin(player)
+                else if arg 2 is "disband":
+                    if arg 2 is set:
+                        if arg 2 is "Confirm":
+                            set {_f} to arg 3
+                            if {eFaction::Faction::%{_f}%::DisbandAdmin} isn't set:
+                                send "{@P} &cAucune demande de dissoudre n'est en cours !"
+                                stop
+                            delete {eFaction::Faction::%{_f}%::DisbandAdmin}
+                            remove {_f} from {eFaction::Factions::Liste::*}
+                            loop {eFaction::Faction::%{_f}%::Membres::*}:
+                                delete {eFaction::Player::%loop-value%::Faction}
+                                delete {eFaction::Player::%loop-value%::FactionRank}
+                                delete {eFaction::Player::%loop-value%::FactionChat}
+                                set {_Player} to "%loop-value%" parsed as player
+                                if {_Player} is online:
+                                    send "{@P} &fVotre faction a été &cdissoud &fpar &4%player% &f!" to {_Player}
+                            wait a tick
+                            delete {eFaction::Faction::%{_f}%::Membres::*}
+                            delete {eFaction::Faction::%{_f}%::Ally::*}
+                            delete {eFaction::Faction::%{_f}%::Enemy::*}
+                            loop {eFaction::Faction::%{_f}%::Claim::*}:
+                                delete {eFaction::Claims::%loop-value%}
+                            delete {eFaction::Faction::%{_f}%::Claim::*}
+                            delete {eFaction::Faction::%{_f}%::Vice-Capitaine::*}
+                            delete {eFaction::Faction::%{_f}%::Officier::*}
+                            delete {eFaction::Faction::%{_f}%::Membre::*}
+                            delete {eFaction::Faction::%{_f}%::Recrue::*}
+                            delete {eFaction::Faction::%{_f}%::FPower}
+                            delete {eFaction::Faction::%{_f}%::Bank}
+                            delete {eFaction::Faction::%{_f}%::Capitaine}
+                            stop
+                    if {eFaction::Faction::%{_f}%::DisbandAdmin} isn't set:
+                        set {eFaction::Faction::%{_f}%::DisbandAdmin} to now
+                        send "{@P} &fVoulez-vous dissoudre la faction &e%{_f}% &f?"
+                        send formatted "<tooltip:&fConfirmez la demande !><cmd:/f admin disband %{_f}% confirm>    &a[Oui]<reset><tooltip:&eIgnorez ce message !>  &c[Non]<reset>"
+                        send "&7(Expiration dans 30s)"
+                        wait 30 seconds
+                        if {eFaction::Faction::%{_f}%::DisbandAdmin} is set:
+                            send "{@P} &cVotre demande de dissoud a éxpiré !"
+                            delete {eFaction::Faction::%{_f}%::DisbandAdmin}
+                else:
+                    send "{@P} &cSous-Commande est inconnue !"
+        else if arg 1 is "credit" or "dev" or "developpeur":
+            send "{@P} &fCrédit &7- &6CraftPieces&7:"
+            send ""
+            send "&dDéveloppeur"
+            send "&7● &fPx_MgeaFR &7(<- &3Discord&7)"
+        else if arg 1 is "create":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if arg 2 isn't set:
+                send "{@P} &f/f create &c(Nom)"
+                stop
+            if {eFaction::Player::%player%::Faction} is set:
+                send "{@P} &cVous êtes déjà dans une faction !"
+                stop
+            if length of arg 2 is less than 5:
+                send "{@P} &cVotre nom est trop court !"
+                stop
+            if length of arg 2 is greater than 16:
+                send "{@P} &cVotre nom est trop long !"
+                stop
+            if arg 3 is set:
+                send "{@P} &cVotre nom ne doit pas contenir d'espaces !"
+                stop
+            if arg 2 contains {@Faction-Create-WordBlocked}:
+                send "{@P} &cVotre nom de faction contient un/des mot(s) non autorisé(s) !"
+                stop
+            if {eFaction::Factions::Liste} contains arg 2:
+                send "{@P} &cCe nom de faction existe déjà !"
+                stop
+            delete {eFaction::Faction::%arg 2%::Membres::*}
+            delete {eFaction::Faction::%arg 2%::Ally::*}
+            delete {eFaction::Faction::%arg 2%::Enemy::*}
+            delete {eFaction::Faction::%arg 2%::Claim::*}
+            delete {eFaction::Faction::%arg 2%::Vice-Capitaine::*}
+            delete {eFaction::Faction::%arg 2%::Officier::*}
+            delete {eFaction::Faction::%arg 2%::Membre::*}
+            delete {eFaction::Faction::%arg 2%::Recrue::*}
+
+            set {eFaction::Player::%player%::Faction} to arg 2
+            set {eFaction::Player::%player%::FactionRank} to "Capitaine"
+            delete {eFaction::Player::%player%::FactionChat}
+            add arg 2 to {eFaction::Factions::Liste::*}
+            set {eFaction::Faction::%arg 2%::Description} to "&6Pas de description défini !"
+            set {eFaction::Faction::%arg 2%::FPower} to {eFaction::Player::%player%::Power}
+            set {eFaction::Faction::%arg 2%::Bank} to 0
+            set {eFaction::Faction::%arg 2%::Capitaine} to player
+            add player to {eFaction::Faction::%arg 2%::Membres::*}
+            send "{@P} &fVotre faction &e%arg 2% &fa été &acréé &f!"
+            broadcast "{@P} &a%player% &fa créé sa faction &e%arg 2% &f!"
+        else if arg 1 is "disband":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            if {eFaction::Faction::%{_f}%::Capitaine} isn't player:
+                send "{@P} &cVous n'êtes pas le capitaine de la faction !"
+                stop
+            if arg 2 is set:
+                if arg 2 is "Confirm":
+                    if {eFaction::Faction::%{_f}%::Disband} isn't set:
+                        send "{@P} &cAucune demande de dissoudre n'est en cours !"
+                        stop
+                    delete {eFaction::Faction::%{_f}%::Disband}
+                    remove {_f} from {eFaction::Factions::Liste::*}
+                    loop {eFaction::Faction::%{_f}%::Membres::*}:
+                        delete {eFaction::Player::%loop-value%::Faction}
+                        delete {eFaction::Player::%loop-value%::FactionRank}
+                        delete {eFaction::Player::%loop-value%::FactionChat}
+                        set {_Player} to "%loop-value%" parsed as player
+                        if {_Player} is online:
+                            send "{@P} &fVotre faction a été &cdissoud &fpar &e%player% &f!" to {_Player}
+                    wait a tick
+                    delete {eFaction::Faction::%{_f}%::Membres::*}
+                    delete {eFaction::Faction::%{_f}%::Ally::*}
+                    delete {eFaction::Faction::%{_f}%::Enemy::*}
+                    loop {eFaction::Faction::%{_f}%::Claim::*}:
+                        delete {eFaction::Claims::%loop-value%}
+                    delete {eFaction::Faction::%{_f}%::Claim::*}
+                    delete {eFaction::Faction::%{_f}%::Vice-Capitaine::*}
+                    delete {eFaction::Faction::%{_f}%::Officier::*}
+                    delete {eFaction::Faction::%{_f}%::Membre::*}
+                    delete {eFaction::Faction::%{_f}%::Recrue::*}
+                    delete {eFaction::Faction::%{_f}%::FPower}
+                    delete {eFaction::Faction::%{_f}%::Bank}
+                    delete {eFaction::Faction::%{_f}%::Capitaine}
+                    stop
+            if {eFaction::Faction::%{_f}%::Disband} isn't set:
+                set {eFaction::Faction::%{_f}%::Disband} to now
+                send "{@P} &fVoulez-vous dissoudre votre faction ?"
+                send formatted "<tooltip:&fConfirmez la demande !><cmd:/f disband confirm>    &a[Oui]<reset><tooltip:&eIgnorez ce message !>  &c[Non]<reset>"
+                send "&7(Expiration dans 30s)"
+                wait 30 seconds
+                if {eFaction::Faction::%{_f}%::Disband} is set:
+                    send "{@P} &cVotre demande de dissoud a éxpiré !"
+                    delete {eFaction::Faction::%{_f}%::Disband}
+        else if arg 1 is "show":
+            if arg 2 isn't set:
+                if sender is console:
+                    send "{@P} &cVous devez indiquer un joueur ou une faction !"
+                    stop
+                send "&d---------------&7[&6CraftPieces&7]&d---------------"
+                if {eFaction::Player::%player%::Faction} is set:
+                    set {_f} to {eFaction::Player::%player%::Faction}
+                    send "&eNom de l'équipage : &b%{eFaction::Player::%player%::Faction}%"
+                    send "&eDescription : &b%{eFaction::Faction::%{_f}%::Description}%"
+                    send "&ePower : &b%{eFaction::Faction::%{_f}%::FPower}%&7/&3%(size of {eFaction::Faction::%{_f}%::Membres::*})*10%"
+                    send "&eVotre Power : &a%{eFaction::Player::%player%::Power}%&7/&210"
+                    send "&eClaims : &b%size of {eFaction::Faction::%{_f}%::Claim::*}%&7/&3%{eFaction::Faction::%{_f}%::FPower}%"
+                    send "&eBerries de l'équipage : &b%GetNumber({eFaction::Faction::%{_f}%::Bank})%&b$"
+                    if size of {eFaction::Faction::%{_f}%::Ally::*} >= 1:
+                        send "&eAlly (%size of {eFaction::Faction::%{_f}%::Ally::*}%/3): &b%{eFaction::Faction::%{_f}%::Ally::*}%"
+                    else:
+                        send "&eAlly (0/3): &bAucune"
+                    if size of {eFaction::Faction::%{_f}%::Enemy::*} >= 1:
+                        send "&eEnemy (%size of {eFaction::Faction::%{_f}%::Enemy::*}%): &b%{eFaction::Faction::%{_f}%::Enemy::*}%"
+                    else:
+                        send "&eEnemy (0): &bAucune"
+                    loop {eFaction::Faction::%{_f}%::Membres::*}:
+                        if {eFaction::Faction::%{_f}%::Capitaine} is loop-value:
+                            add "&c :capitaine: &c%loop-value%" to {_Membres::*}
+                        if {eFaction::Faction::%{_f}%::Vice-Capitaine::*} contains loop-value:
+                            add "&6 :vice-capitaine: &6%loop-value%" to {_Membres::*}
+                        if {eFaction::Faction::%{_f}%::Officier::*} contains loop-value:
+                            add "&e :officier: &e%loop-value%" to {_Membres::*}
+                        if {eFaction::Faction::%{_f}%::Membre::*} contains loop-value:
+                            add "&a :membre: &a%loop-value%" to {_Membres::*}
+                        if {eFaction::Faction::%{_f}%::Recrue::*} contains loop-value:
+                            add "&b :recrue: &b%loop-value%" to {_Membres::*}
+                    set {_MembresFinal} to join {_Membres::*} by "&7,&f"
+                    send "&eListe des membres (%size of {eFaction::Faction::%{_f}%::Membres::*}%/10): &f%{_MembresFinal}%"
+                else:
+                    send "&aWilderness"
+                send "&d---------------------------------------------"
+            else if {eFaction::Factions::Liste::*} contains arg 2:
+                send "&d---------------&7[&6CraftPieces&7]&d---------------"
+                set {_f} to arg 2
+                send "&eNom de l'équipage : &b%arg 2%"
+                send "&eDescription : &b%{eFaction::Faction::%{_f}%::Description}%"
+                send "&ePower : &b%{eFaction::Faction::%{_f}%::FPower}%&7/&3%(size of {eFaction::Faction::%{_f}%::Membres::*})*10%"
+                send "&eVotre Power : &a-&7/&210"
+                send "&eClaims : &b%size of {eFaction::Faction::%{_f}%::Claim::*}%&7/&3%{eFaction::Faction::%{_f}%::FPower}%"
+                send "&eBerries de l'équipage : &b%GetNumber({eFaction::Faction::%{_f}%::Bank})%&b$"
+                if size of {eFaction::Faction::%{_f}%::Ally::*} >= 1:
+                    send "&eAlly (%size of {eFaction::Faction::%{_f}%::Ally::*}%): &b%{eFaction::Faction::%{_f}%::Ally::*}%"
+                else:
+                    send "&eAlly (0): &bAucune"
+                if size of {eFaction::Faction::%{_f}%::Enemy::*} >= 1:
+                    send "&eEnemy (%size of {eFaction::Faction::%{_f}%::Enemy::*}%): &b%{eFaction::Faction::%{_f}%::Enemy::*}%"
+                else:
+                    send "&eEnemy (0): &bAucune"
+                loop {eFaction::Faction::%{_f}%::Membres::*}:
+                    if {eFaction::Faction::%{_f}%::Capitaine} is loop-value:
+                        add "&c :capitaine: &c%loop-value%" to {_Membres::*}
+                    if {eFaction::Faction::%{_f}%::Vice-Capitaine::*} contains loop-value:
+                        add "&6 :vice-capitaine: &6%loop-value%" to {_Membres::*}
+                    if {eFaction::Faction::%{_f}%::Officier::*} contains loop-value:
+                        add "&e :officier: &e%loop-value%" to {_Membres::*}
+                    if {eFaction::Faction::%{_f}%::Membre::*} contains loop-value:
+                        add "&a :membre: &a%loop-value%" to {_Membres::*}
+                    if {eFaction::Faction::%{_f}%::Recrue::*} contains loop-value:
+                        add "&b :recrue: &b%loop-value%" to {_Membres::*}
+                set {_MembresFinal} to join {_Membres::*} by "&7,&f"
+                send "&eListe des membres (%size of {eFaction::Faction::%{_f}%::Membres::*}%/10): &f%{_MembresFinal}%"
+                send "&d---------------------------------------------"
+            else if {eFaction::Player::%arg 2%::Faction} is set:
+                send "&d---------------&7[&6CraftPieces&7]&d---------------"
+                set {_f} to {eFaction::Player::%arg 2%::Faction}
+                send "&eNom de l'équipage : &b%{eFaction::Player::%arg 2%::Faction}%"
+                send "&eDescription : &b%{eFaction::Faction::%{_f}%::Description}%"
+                send "&ePower : &b%{eFaction::Faction::%{_f}%::FPower}%&7/&3%(size of {eFaction::Faction::%{_f}%::Membres::*})*10%"
+                send "&eVotre Power : &a%{eFaction::Player::%arg 2%::Power}%&7/&210"
+                send "&eClaims : &b%size of {eFaction::Faction::%{_f}%::Claim::*}%&7/&3%{eFaction::Faction::%{_f}%::FPower}%"
+                send "&eBerries de l'équipage : &b%GetNumber({eFaction::Faction::%{_f}%::Bank})%&b$"
+                if size of {eFaction::Faction::%{_f}%::Ally::*} >= 1:
+                    send "&eAlly (%size of {eFaction::Faction::%{_f}%::Ally::*}%): &b%{eFaction::Faction::%{_f}%::Ally::*}%"
+                else:
+                    send "&eAlly (0): &bAucune"
+                if size of {eFaction::Faction::%{_f}%::Enemy::*} >= 1:
+                    send "&eEnemy (%size of {eFaction::Faction::%{_f}%::Enemy::*}%): &b%{eFaction::Faction::%{_f}%::Enemy::*}%"
+                else:
+                    send "&eEnemy (0): &bAucune"
+                loop {eFaction::Faction::%{_f}%::Membres::*}:
+                    if {eFaction::Faction::%{_f}%::Capitaine} is loop-value:
+                        add "&c :capitaine: &c%loop-value%" to {_Membres::*}
+                    if {eFaction::Faction::%{_f}%::Vice-Capitaine::*} contains loop-value:
+                        add "&6 :vice-capitaine: &6%loop-value%" to {_Membres::*}
+                    if {eFaction::Faction::%{_f}%::Officier::*} contains loop-value:
+                        add "&e :officier: &e%loop-value%" to {_Membres::*}
+                    if {eFaction::Faction::%{_f}%::Membre::*} contains loop-value:
+                        add "&a :membre: &a%loop-value%" to {_Membres::*}
+                    if {eFaction::Faction::%{_f}%::Recrue::*} contains loop-value:
+                        add "&b :recrue: &b%loop-value%" to {_Membres::*}
+                set {_MembresFinal} to join {_Membres::*} by "&7,&f"
+                send "&eListe des membres (%size of {eFaction::Faction::%{_f}%::Membres::*}%/10): &f%{_MembresFinal}%"
+                send "&d---------------------------------------------"
+            else if (arg 2 parsed as player) has played before: 
+                send "&d---------------&7[&6CraftPieces&7]&d---------------"
+                send "&aWilderness"
+                send "&d---------------------------------------------"
+            else:
+                send "{@P} &cCette faction n'existe pas !"
+        else if arg 1 is "toggle":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if arg 2 is "invite" or "invites":
+                if {eFaction::Player::%player%::Toggle::Invite} isn't set:
+                    set {eFaction::Player::%player%::Toggle::Invite} to true
+                    send "{@P} &fVous avez &cdésactivé &fvos demandes d'invitations de faction !"
+                else:
+                    delete {eFaction::Player::%player%::Toggle::Invite}
+                    send "{@P} &fVous avez &aactivé &fvos demandes d'invitations de faction !"
+            else:
+                send "{@P} &c/f toggle (invite, ...)"
+        else if arg 1 is "map":
+            message "------------ [ Mini Map ] ------------"
+            set {_mapX} to 11
+            set {_mapY} to 6
+            set {_m} to ""
+            loop 13 times:
+                loop 23 times:
+                    set {_x} to {_mapX} * 16
+                    set {_y} to {_mapY} * 16
+                    set {_chunk2} to chunk at block {_y} blocks north {_x} blocks west of player
+                    if {eFaction::Claims::%{_chunk2}%} isn't set:
+                        set {_result} to ""
+                    else:
+                        set {_result} to {eFaction::Claims::%{_chunk2}%}
+                # Position du joueur sur la mini-map
+                    set {_f} to {eFaction::Player::%player%::Faction}
+                    if {_chunk2} is chunk at player:
+                        set {_m} to "%{_m}%<tooltip:&eVous êtes ici !>&e█<reset>"
+                # Claim du joueur
+                    else if {_result} is {eFaction::Player::%player%::Faction}:
+                        set {_m} to "%{_m}%<tooltip:&a%{_result}%>&a█<reset>"
+                # Claim du spawn
+                    else if {_result} is "&2Spawn":
+                        set {_m} to "%{_m}%<tooltip:&2Spawn>&2█<reset>"
+                # Claim de la Warzone
+                    else if {_result} is "&4Warzone":
+                        set {_m} to "%{_m}%<tooltip:&4Warzone>&4█<reset>"
+                # Zone Libre
+                    else if {_result} is "":
+                        set {_m} to "%{_m}%&7█"
+                # Autre Claim
+                    else:
+                        set {_m} to "%{_m}%<tooltip:&c%{_result}%>&c█<reset>"
+                    add -1 to {_mapX}
+                message formatted "%{_m}%" to player
+                
+                set {_m} to ""
+                add -1 to {_mapY}
+                set {_mapX} to 11
+                set {_n} to "N"
+                set {_s} to "S"
+                set {_e} to "E"
+                set {_w} to "W"
+                if facing of player is north:
+                    set {_n} to "&4N&6"
+                else if facing of player is south:
+                    set {_s} to "&4S&6"
+                else if facing of player is west:
+                    set {_w} to "&4W&6"
+                else if facing of player is east:
+                    set {_e} to "&4E&6"
+
+            message " "
+            message "&a█&7 &aVos claims  &e█&7 &eVous  &c█&7 &cAutres claims     &6\%{_n}%/"
+            message "&7█ Zone Libre  &2█&7 &2Spawn  &4█&7 &4Warzone         &6%{_w}%+%{_e}%"
+            message "                                                      &6/%{_s}%\"
+        else if arg 1 is "chat" or "c":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if arg 2 is "faction" or "f":
+                if {eFaction::Player::%player%::FactionChat} isn't "Faction":
+                    set {eFaction::Player::%player%::FactionChat} to "Faction"
+                    send "{@P} &fVous avez été envoyé au Canal &2Faction &f!"
+                else:
+                    send "{@P} &cVous êtes déjà ce canal !"
+            if arg 2 is "alliance" or "ally" or "a":
+                if {eFaction::Player::%player%::FactionChat} isn't "Ally":
+                    set {eFaction::Player::%player%::FactionChat} to "Ally"
+                    send "{@P} &fVous avez été envoyé au Canal &aAlly &f!"
+                else:
+                    send "{@P} &cVous êtes déjà ce canal !"
+            if arg 2 is "global" or "g":
+                if {eFaction::Player::%player%::FactionChat} is set:
+                    delete {eFaction::Player::%player%::FactionChat}
+                    send "{@P} &fVous avez été envoyé au Canal &7Global &f!"
+                else:
+                    send "{@P} &cVous êtes déjà ce canal !"
+            else:
+                if {eFaction::Player::%player%::FactionChat} isn't set:
+                    set {eFaction::Player::%player%::FactionChat} to "Faction"
+                    send "{@P} &fVous avez été envoyé au Canal &2Faction &f!"
+                else if {eFaction::Player::%player%::FactionChat} is "Faction":
+                    set {eFaction::Player::%player%::FactionChat} to "Ally"
+                    send "{@P} &fVous avez été envoyé au Canal &aAlly &f!"
+                else if {eFaction::Player::%player%::FactionChat} is "Ally":
+                    delete {eFaction::Player::%player%::FactionChat}
+                    send "{@P} &fVous avez été envoyé au Canal &7Global &f!"
+        else if arg 1 is "invite":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if player is (arg 2 parsed as player):
+                send "{@P} &fAction impossible sur vous !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine" or "Vice-Capitaine" or "Officier":
+                send "{@P} &cVous n'êtes pas autorisé à inviter des joueurs dans la faction !"
+                stop
+            if arg 2 isn't set:
+                send "{@P} &f/f invite &c(player)"
+                stop
+            if (arg 2 parsed as player) is offline:
+                if (arg 2 parsed as player) has not played before:
+                    send "{@P} &cCe joueur est introuvable !"
+                    stop
+            if {eFaction::Player::%arg 2%::Toggle::Invite} is set:
+                send "{@P} &cCe joueur a désactivé les invitations ! &7(/f toggle invite)"
+                stop
+            if {eFaction::Player::%arg 2%::Faction} is set:
+                send "{@P} &cCe joueur a déjà une faction !"
+                stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            if size of {eFaction::Faction::%{_f}%::Membres::*} >= 10:
+                send "{@P} &cLa faction est complète ! (10/10)"
+                stop
+            add {eFaction::Player::%player%::Faction} to {eFaction::Player::%arg 2%::Invitations::*}
+            send "{@P} &fVous avez invité &e%arg 2% &fdans votre faction"
+            send "&7(Expiration dans 30s)"
+            send "{@P} &e[INVITE] &a%player% &fa invité &e%arg 2% &f!" to {eFaction::Faction::%{_f}%::Membres::*}
+
+            send "{@P} &fVoulez-vous rejoindre cette faction &e%{_f}% &f?" to (arg 2 parsed as player)
+            send formatted "<tooltip:&fConfirmez la demande !><cmd:/f join %{eFaction::Player::%player%::Faction}%>    &a[Oui]<reset><tooltip:&eIgnorez ce message !>  &c[Non]<reset>" to (arg 2 parsed as player)
+            send "&7(Expiration dans 30s)" to (arg 2 parsed as player)
+            wait 30 seconds
+            if {eFaction::Player::%arg 2%::Invitations::*} contains {eFaction::Player::%player%::Faction}:
+                send "{@P} &cVotre demande d'invitation a éxpiré !"
+                send "{@P} &cL'invitation de &e%{eFaction::Player::%player%::Faction}% &fa expiré !"
+                remove {eFaction::Player::%player%::Faction} from {eFaction::Player::%arg 2%::Invitations::*}
+        else if arg 1 is "join":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if arg 2 isn't set:
+                send "{@P} &f/f join &c(faction)"
+                stop
+            if {eFaction::Player::%player%::Faction} is set:
+                send "{@P} &cVous êtes déjà dans une faction !"
+                stop
+            if {eFaction::Factions::Liste::*} contains arg 2:
+                if {eFaction::Player::%player%::Invitations::*} contains arg 2:
+                    set {_f} to {eFaction::Player::%{eFaction::Faction::%arg 2%::Capitaine}%::Faction}
+                    set {eFaction::Player::%player%::Faction} to {_f}
+                    set {eFaction::Player::%player%::FactionRank} to "Recrue"
+                    delete {eFaction::Player::%player%::FactionChat}
+                    add player to {eFaction::Faction::%{_f}%::Membres::*}
+                    add player to {eFaction::Faction::%{_f}%::Recrue::*}
+
+                    loop {eFaction::Faction::%{_f}%::Membres::*}:
+                        add {eFaction::Player::%loop-value%::Power} to {_Power}
+                    set {eFaction::Faction::%{_f}%::FPower} to {_Power}
+                    remove arg 2 from {eFaction::Player::%player%::Invitations::*}
+                    send "{@P} &fVous avez &arejoint &fune faction&7: &e%arg 2% &f!"
+                    send "{@P} &a[Join] &e&l%player% &fa rejoint la faction &f!" to {eFaction::Faction::%{_f}%::Membres::*}
+                else:
+                    send "{@P} &cVous n'avez pas été invité par cette faction ou l'invitation a expiré !"
+            else:
+                send "{@P} &cCette faction n'existe pas !"
+        else if arg 1 is "leave":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} is "Capitaine":
+                send "{@P} &cVous ne pouvez pas quitter votre faction en tant que Capitaine &c!"
+                send "&7(N°1: Soit vous changez le Capitaine&7, executer &e/f lead &c(player)&7)"
+                send "&7(N°2: Soit vous fdissoudez &7la faction, executer &e/f disband&7)"
+                stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            delete {eFaction::Player::%player%::Faction}
+            remove player from {eFaction::Faction::%{_f}%::Membres::*}
+            remove player from {eFaction::Faction::%{_f}%::%{eFaction::Player::%player%::FactionRank}%::*}
+            delete {eFaction::Player::%player%::FactionRank}
+            delete {eFaction::Player::%player%::FactionChat}
+
+            loop {eFaction::Faction::%{_f}%::Membres::*}:
+                add {eFaction::Player::%loop-value%::Power} to {_Power}
+            set {eFaction::Faction::%{_f}%::FPower} to {_Power}
+            send "{@P} &fVous avez &cquitté &fla faction &e%{_f}% &f!"
+            send "{@P} &c[Leave] &e%player% &fa quitté la faction &f!" to {eFaction::Faction::%{_f}%::Membres::*}
+        else if arg 1 is "shop":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            create a gui with virtual chest inventory with 6 rows named "&2Faction/Shop":
+                make gui slot 22 with red wool named "Ce shop n'est pas encore disponible !" 
+            open last gui for player
+        else if arg 1 is "deposit" or "dep": #{berries.%player%}
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            # if {eFaction::Player::%player%::FactionRank} isn't "Capitaine" or "Vice-Capitaine" or "Officier" or "Membre":
+                # send "{@P} &cVous n'êtes pas autorisé à déposer de l'argent !"
+                # stop
+            if arg 2 isn't set:
+                send "{@P} &c/f deposit (Nombre)"
+                stop
+            set {_n} to arg 2 parsed as number
+            if {_n} >= 1:
+                if {berries.%player%} >= {_n}:
+                    remove {_n} from {berries.%player%}
+                    set {_f} to {eFaction::Player::%player%::Faction}
+                    add {_n} to {eFaction::Faction::%{_f}%::Bank}
+                    send "{@P} &fVous avez déposé &e%{_n}%$ &fà la banque de votre faction !"
+                    send "{@P} &d[Deposit] &a+ %{_n}%$ &7(Par: %player%)" to {eFaction::Faction::%{_f}%::Membres::*}
+                else:
+                    send "{@P} &cVous n'avez pas assez d'argent pour déposer !"
+            else:
+                send "{@P} &cVeuillez indiquer un nombre !"
+        else if arg 1 is "withdraw" or "wtd":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine" or "Vice-Capitaine" or "Officier":
+                send "{@P} &cVous n'êtes pas autorisé à retirer de l'argent !"
+                stop
+            if arg 2 isn't set:
+                send "{@P} &c/f withdraw (Nombre)"
+                stop
+            set {_n} to arg 2 parsed as number
+            if {_n} >= 1:
+                set {_f} to {eFaction::Player::%player%::Faction}
+                if {eFaction::Faction::%{_f}%::Bank} >= {_n}:
+                    remove {_n} from {eFaction::Faction::%{_f}%::Bank}
+                    add {_n} to {berries.%player%}
+                    send "{@P} &fVous avez retiré &e%{_n}%$ &fde la banque de votre faction !"
+                    send "{@P} &5[Withdraw] &c- %{_n}%$ &7(Par: %player%)" to {eFaction::Faction::%{_f}%::Membres::*}
+                else:
+                    send "{@P} &cLa banque de faction n'a pas assez d'argent !"
+            else:
+                send "{@P} &cVeuillez indiquer un nombre !"
+        else if arg 1 is "kick":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if player is (arg 2 parsed as player):
+                send "{@P} &fAction impossible sur vous !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine" or "Vice-Capitaine" or "Officier":
+                send "{@P} &cVous n'êtes pas autorisé à ejeter des joueurs de la faction !"
+                stop
+            if arg 2 isn't set:
+                send "{@P} &f/f kick &c(player)"
+                stop
+            if (arg 2 parsed as player) is offline:
+                if (arg 2 parsed as player) has not played before:
+                    send "{@P} &cCe joueur est introuvable !"
+                    stop
+            if {eFaction::Player::%player%::Faction} isn't {eFaction::Player::%arg 2%::Faction}:
+                send "{@P} &cVous n'êtes pas dans la même faction !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} is "Vice-Capitaine":
+                if {eFaction::Player::%arg 2%::FactionRank} is "Capitaine":
+                    send "{@P} &cVous ne pouvez pas ejeter votre Capitaine !"
+                    stop
+            if {eFaction::Player::%player%::FactionRank} is "Officier":
+                if {eFaction::Player::%arg 2%::FactionRank} is "Capitaine" or "Vice-Capitaine":
+                    send "{@P} &cVous ne pouvez pas ejeter un supérieur !"
+                    stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            delete {eFaction::Player::%arg 2%::Faction}
+            remove arg 2 from {eFaction::Faction::%{_f}%::Membres::*}
+            remove arg 2 from {eFaction::Faction::%{_f}%::%{eFaction::Player::%arg 2%::FactionRank}%::*}
+            delete {eFaction::Player::%arg 2%::FactionRank}
+            delete {eFaction::Player::%arg 2%::FactionChat}
+
+            loop {eFaction::Faction::%{_f}%::Membres::*}:
+                add {eFaction::Player::%loop-value%::Power} to {_Power}
+            set {eFaction::Faction::%{_f}%::FPower} to {_Power}
+            send "{@P} &fVous avez été &cejecté &fde la faction par &e%player% &f!" to (arg 2 parsed as player)
+            send "{@P} &4[Kick] &c%arg 2% &fa été ejecté par &e%player% &f!" to {eFaction::Faction::%{_f}%::Membres::*}
+        else if arg 1 is "lead":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if player is (arg 2 parsed as player):
+                send "{@P} &fAction impossible sur vous !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine":
+                send "{@P} &cVous n'êtes pas autorisé à promouvoir Capitaine des joueurs de la faction !"
+                stop
+            if arg 2 isn't set:
+                send "{@P} &f/f lead &c(player)"
+                stop
+            if arg 2 is set:
+                if arg 2 is "Confirm":
+                    set {_f} to {eFaction::Player::%player%::Faction}
+                    if {eFaction::Faction::%{_f}%::ChangeLead} isn't set:
+                        send "{@P} &cAucune demande de changement de Capitaine n'est en cours !"
+                        stop
+                    set {_f} to {eFaction::Player::%player%::Faction}
+                    add {eFaction::Faction::%{_f}%::Capitaine} to {eFaction::Faction::%{_f}%::Vice-Capitaine::*}
+                    set {eFaction::Player::%{eFaction::Faction::%{_f}%::Capitaine}%::FactionRank} to "Vice-Capitaine"
+                    remove {eFaction::Faction::%{_f}%::ChangeLead} from {eFaction::Faction::%{_f}%::%{eFaction::Player::%{eFaction::Faction::%{_f}%::ChangeLead}%::FactionRank}%::*}
+                    set {eFaction::Faction::%{_f}%::Capitaine} to {eFaction::Faction::%{_f}%::ChangeLead}
+                    set {eFaction::Player::%{eFaction::Faction::%{_f}%::ChangeLead}%::FactionRank} to "Capitaine"
+                    delete {eFaction::Faction::%{_f}%::ChangeLead}
+                    send "{@P} &fVous avez donné votre place de Capitaine à &e%{eFaction::Faction::%{_f}%::Capitaine}% &f! &7(Vous êtes Vice-Capitaine)"
+                    if ({eFaction::Faction::%{_f}%::Capitaine} parsed as player) is online:
+                        send "{@P} &fVous êtes désormais le Capitaine de cette faction !" to ({eFaction::Faction::%{_f}%::Capitaine} parsed as player)
+                    send "{@P} &9[ChangeLead] &e%{eFaction::Faction::%{_f}%::Capitaine}% &fest désormais votre nouveau Capitaine !" to {eFaction::Faction::%{_f}%::Membres::*}
+                    stop
+            if (arg 2 parsed as player) is offline:
+                if (arg 2 parsed as player) has not played before:
+                    send "{@P} &cCe joueur est introuvable !"
+                    stop
+            if {eFaction::Player::%player%::Faction} isn't {eFaction::Player::%arg 2%::Faction}:
+                send "{@P} &cVous n'êtes pas dans la même faction !"
+                stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            if {eFaction::Faction::%{_f}%::ChangeLead} isn't set:
+                set {eFaction::Faction::%{_f}%::ChangeLead} to arg 2
+                send "{@P} &fVoulez-vous donner votre place de Capitaine ?"
+                send formatted "<tooltip:&fConfirmez la demande !><cmd:/f lead confirm>    &a[Oui]<reset><tooltip:&eIgnorez ce message !>  &c[Non]<reset>"
+                send "&7(Expiration dans 30s)"
+                wait 30 seconds
+                if {eFaction::Faction::%{_f}%::ChangeLead} is set:
+                    send "{@P} &cVotre demande de changement de Capitaine a éxpiré !"
+                    delete {eFaction::Faction::%{_f}%::ChangeLead}
+        else if arg 1 is "description" or "desc":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine":
+                send "{@P} &cVous n'êtes pas autorisé à modifier la description de la faction !"
+                stop
+            if arg 2 isn't set:
+                send "{@P} &f/f desc/description &c(description)"
+                stop
+            if arg 2 contains {@Faction-Desc-WordBlocked}:
+                send "{@P} &cVotre description contient un/des mot(s) non autorisé(s) !"
+                stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            set {_desc} to uncolored arg 2
+            if arg 3 is set:
+                set {_desc} to "%{_desc}% %uncolored arg 3%"
+            if arg 4 is set:
+                set {_desc} to "%{_desc}% %uncolored arg 4%"
+            if length of {_desc} >= 50:
+                send "{@P} &cVous avez dépassé le nombre de caractères dans votre description !"
+                stop
+            set {eFaction::Faction::%{_f}%::Description} to {_desc}
+            send "{@P} &fVous avez &amodifié &fla description de votre faction !"
+        else if arg 1 is "promote":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if player is (arg 2 parsed as player):
+                send "{@P} &fAction impossible sur vous !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine" or "Vice-Capitaine" or "Officier":
+                send "{@P} &cVous n'êtes pas autorisé à promouvoir des joueurs de la faction !"
+                stop
+            if arg 2 isn't set:
+                send "{@P} &f/f promote &c(player)"
+                stop
+            if (arg 2 parsed as player) is offline:
+                if (arg 2 parsed as player) has not played before:
+                    send "{@P} &cCe joueur est introuvable !"
+                    stop
+            if {eFaction::Player::%player%::Faction} isn't {eFaction::Player::%arg 2%::Faction}:
+                send "{@P} &cVous n'êtes pas dans la même faction !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} is "Vice-Capitaine":
+                if {eFaction::Player::%arg 2%::FactionRank} is "Capitaine" or "Vice-Capitaine":
+                    send "{@P} &cVous ne pouvez pas promouvoir un membre, uniquement le Capitaine peut !"
+                    stop
+            if {eFaction::Player::%player%::FactionRank} is "Officier":
+                if {eFaction::Player::%arg 2%::FactionRank} is "Capitaine" or "Vice-Capitaine" or "Officier":
+                    send "{@P} &cVous ne pouvez pas promouvoir un supérieur ou de votre rang !"
+                    stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            if {eFaction::Player::%arg 2%::FactionRank} is "Recrue":
+                remove arg 2 from {eFaction::Faction::%{_f}%::Recrue::*}
+                add arg 2 to {eFaction::Faction::%{_f}%::Membre::*}
+                set {eFaction::Player::%arg 2%::FactionRank} to "Membre"
+            else if {eFaction::Player::%arg 2%::FactionRank} is "Membre":
+                remove arg 2 from {eFaction::Faction::%{_f}%::Membre::*}
+                add arg 2 to {eFaction::Faction::%{_f}%::Officier::*}
+                set {eFaction::Player::%arg 2%::FactionRank} to "Officier"
+            else if {eFaction::Player::%arg 2%::FactionRank} is "Officier":
+                remove arg 2 from {eFaction::Faction::%{_f}%::Officier::*}
+                add arg 2 to {eFaction::Faction::%{_f}%::Vice-Capitaine::*}
+                set {eFaction::Player::%arg 2%::FactionRank} to "Vice-Capitaine"
+            else:
+                send "{@P} &fSi vous voulez le promouvoir &cCapitaine&f, executez &e/f lead (player) &f"
+                stop
+            send "{@P} &fVous venez de promouvoir &e%arg 2% &fau rang de &7%{eFaction::Player::%arg 2%::FactionRank}% &f!"
+            send "{@P} &6[Promote] &e%arg 2% &fest désormais &7%{eFaction::Player::%arg 2%::FactionRank}% &f! &7(Par %player%)" to {eFaction::Faction::%{_f}%::Membres::*}
+            send "{@P} &fVous venez d'être promu par &6%arg 2% &fau rang de &7%{eFaction::Player::%arg 2%::FactionRank}% &f!" to (arg 2 parsed as player)
+        else if arg 1 is "demote":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if player is (arg 2 parsed as player):
+                send "{@P} &fAction impossible sur vous !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine" or "Vice-Capitaine" or "Officier":
+                send "{@P} &cVous n'êtes pas autorisé à dégradé des joueurs de la faction !"
+                stop
+            if arg 2 isn't set:
+                send "{@P} &f/f demote &c(player)"
+                stop
+            if (arg 2 parsed as player) is offline:
+                if (arg 2 parsed as player) has not played before:
+                    send "{@P} &cCe joueur est introuvable !"
+                    stop
+            if {eFaction::Player::%player%::Faction} isn't {eFaction::Player::%arg 2%::Faction}:
+                send "{@P} &cVous n'êtes pas dans la même faction !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} is "Vice-Capitaine":
+                if {eFaction::Player::%arg 2%::FactionRank} is "Capitaine" or "Vice-Capitaine":
+                    send "{@P} &cVous ne pouvez pas dégradé un membre, uniquement le Capitaine peut !"
+                    stop
+            if {eFaction::Player::%player%::FactionRank} is "Officier":
+                if {eFaction::Player::%arg 2%::FactionRank} is "Capitaine" or "Vice-Capitaine" or "Officier":
+                    send "{@P} &cVous ne pouvez pas dégradé un supérieur ou de votre rang !"
+                    stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            if {eFaction::Player::%arg 2%::FactionRank} is "Membre":
+                remove arg 2 from {eFaction::Faction::%{_f}%::Membre::*}
+                add arg 2 to {eFaction::Faction::%{_f}%::Recrue::*}
+                set {eFaction::Player::%arg 2%::FactionRank} to "Recrue"
+            else if {eFaction::Player::%arg 2%::FactionRank} is "Officier":
+                remove arg 2 from {eFaction::Faction::%{_f}%::Officier::*}
+                add arg 2 to {eFaction::Faction::%{_f}%::Membre::*}
+                set {eFaction::Player::%arg 2%::FactionRank} to "Membre"
+            else if {eFaction::Player::%arg 2%::FactionRank} is "Vice-Capitaine":
+                remove arg 2 from {eFaction::Faction::%{_f}%::Vice-Capitaine::*}
+                add arg 2 to {eFaction::Faction::%{_f}%::Officier::*}
+                set {eFaction::Player::%arg 2%::FactionRank} to "Officier"
+            else:
+                send "{@P} &fVous pouvez uniquement ejecter ce membre au rang de &bRecrue&f, executez &e/f kick (player) &f"
+                stop
+            send "{@P} &fVous venez de dégradé &6%arg 2% &fau rang de &7%{eFaction::Player::%arg 2%::FactionRank}% &f!"
+            send "{@P} &e[Demote] &6%arg 2% &fest désormais &7%{eFaction::Player::%arg 2%::FactionRank}% &f! &7(Par %player%)" to {eFaction::Faction::%{_f}%::Membres::*}
+            send "{@P} &fVous venez d'être dégradé par &6%arg 2% &fau rang de &7%{eFaction::Player::%arg 2%::FactionRank}% &f!" to (arg 2 parsed as player)
+        else if arg 1 is "claim":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if arg 2 is "-s" or "-w":
+                if player is op:
+                    if {eFaction::Claims::%chunk at player's location%} is set:
+                        set {_c} to "&7(Appartenant à &e%{eFaction::Claims::%chunk at player's location%}%&7)"
+                    if arg 2 is "-s":
+                        if {_c} is set:
+                            if {eFaction::Claims::%chunk at player's location%} is "&4Warzone":
+                                set {_uc} to "PvP-Warzone"
+                            else if {eFaction::Claims::%chunk at player's location%} is "&2Spawn":
+                                set {_uc} to "Safe-Spawn"
+                            else:
+                                set {_uc} to {eFaction::Claims::%chunk at player's location%}
+                                if {eFaction::Faction::%{_uc}%::HomeChunk} is chunk at player's location:
+                                    delete {eFaction::Faction::%{_uc}%::Home}
+                            remove chunk at player's location from {eFaction::Faction::%{_uc}%::Claim::*}
+                        set {eFaction::Claims::%chunk at player's location%} to "&2Spawn"
+                        add chunk at player's location to {eFaction::Faction::Safe-Spawn::Claim::*}
+                        send "{@P} &fVous avez défini cette zone en mode &2Spawn &f! %{_c}?""%"
+                    if arg 2 is "-w":
+                        if {_c} is set:
+                            if {eFaction::Claims::%chunk at player's location%} is "&4Warzone":
+                                set {_uc} to "PvP-Warzone"
+                            else if {eFaction::Claims::%chunk at player's location%} is "&2Spawn":
+                                set {_uc} to "Safe-Spawn"
+                            else:
+                                set {_uc} to {eFaction::Claims::%chunk at player's location%}
+                                if {eFaction::Faction::%{_uc}%::HomeChunk} is chunk at player's location:
+                                    delete {eFaction::Faction::%{_uc}%::Home}
+                            remove chunk at player's location from {eFaction::Faction::%{_uc}%::Claim::*}
+                        set {eFaction::Claims::%chunk at player's location%} to "&4Warzone"
+                        add chunk at player's location to {eFaction::Faction::PvP-Warzone::Claim::*}
+                        send "{@P} &fVous avez défini cette zone en mode &4Warzone &f! %{_c}?""%"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine" or "Vice-Capitaine" or "Officier":
+                send "{@P} &cVous n'êtes pas autorisé à acheter une zone pour la faction !"
+                stop
+            if {eFaction::Claims::%chunk at player's location%} is "&2Spawn" or "&4Warzone":
+                send "{@P} &fCette zone n'est pas achetable !"
+                stop
+            else if {eFaction::Claims::%chunk at player's location%} is set:
+                set {_f} to {eFaction::Claims::%chunk at player's location%}
+                if (size of {eFaction::Faction::%{_f}%::Claim::*}) >= {eFaction::Faction::%{_f}%::FPower}:
+                    set {eFaction::Claims::%chunk at player's location%} to {eFaction::Player::%player%::Faction}
+                    add chunk at player's location to {eFaction::Faction::%{eFaction::Player::%player%::Faction}%::Claim::*}
+                    remove chunk at player's location from {eFaction::Faction::%{_f}%::Claim::*}
+                    if {eFaction::Faction::%{_f}%::HomeChunk} is chunk at player's location:
+                        delete {eFaction::Faction::%{_f}%::Home}
+                    send "{@P} &fVous avez surclaim cette faction !"
+                else:
+                    send "{@P} &fCe zone appartient à &e%{eFaction::Claims::%chunk at player's location%}% &f!"
+                stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            if (size of {eFaction::Faction::%{_f}%::Claim::*}) >= {eFaction::Faction::%{_f}%::FPower}:
+                send "{@P} &fVous ne pouvez pas faire ceci, vous pouvez vous faire surclaim !"
+                stop
+            if {eFaction::Faction::%{_f}%::Bank} >= {@Faction-Claim-Price}:
+                remove {@Faction-Claim-Price} from {eFaction::Faction::%{_f}%::Bank}
+                set {eFaction::Claims::%chunk at player's location%} to {_f}
+                add chunk at player's location to {eFaction::Faction::%{_f}%::Claim::*}
+                send "{@P} &fVous avez &aacheté &fune zone !"
+            else:
+                send "{@P} &cVous devez avoir &f50k$&c de Berries !"
+        else if arg 1 is "unclaim" or "uc":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if arg 2 is "-s" or "-w" or "-b":
+                if player is op:
+                    if {eFaction::Claims::%chunk at player's location%} is set:
+                        set {_c} to "&7(Appartenant à &e%{eFaction::Claims::%chunk at player's location%}%&7)"
+                    if arg 2 is "-s":
+                        if {eFaction::Claims::%chunk at player's location%} is "&2Spawn":
+                            delete {eFaction::Claims::%chunk at player's location%}
+                            remove chunk at player's location from {eFaction::Faction::Safe-Spawn::Claim::*}
+                            send "{@P} &fVous avez supprimé cette zone en mode &2Spawn &f!"
+                        else:
+                            send "{@P} &fCette zone n'appartient pas à &2Spawn &f!"
+                    if arg 2 is "-w":
+                        if {eFaction::Claims::%chunk at player's location%} is "&4Warzone":
+                            delete {eFaction::Claims::%chunk at player's location%}
+                            remove chunk at player's location from {eFaction::Faction::PvP-Warzone::Claim::*}
+                            send "{@P} &fVous avez supprimé cette zone en mode &4Warzone &f!"
+                        else:
+                            send "{@P} &fCette zone n'appartient pas à &4Warzone &f!"
+                    if arg 2 is "-b":
+                        if {eFaction::Claims::%chunk at player's location%} isn't set:
+                            send "{@P} &fCettz zone n'appartient à personne !"
+                            stop
+                        else if {eFaction::Claims::%chunk at player's location%} is "&4Warzone":
+                            set {_uc} to "PvP-Warzone"
+                        else if {eFaction::Claims::%chunk at player's location%} is "&2Spawn":
+                            set {_uc} to "Safe-Spawn"
+                        else:
+                            set {_uc} to {eFaction::Claims::%chunk at player's location%}
+                            if {eFaction::Faction::%{_uc}%::HomeChunk} is chunk at player's location:
+                                delete {eFaction::Faction::%{_uc}%::Home}
+                        remove chunk at player's location from {eFaction::Faction::%{_uc}%::Claim::*}
+                        delete {eFaction::Claims::%chunk at player's location%}
+                        send "{@P} &fVous avez supprimé cette zone %{_c}?""%"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine" or "Vice-Capitaine" or "Officier":
+                send "{@P} &cVous n'êtes pas autorisé à acheter une zone pour la faction !"
+                stop
+            if {eFaction::Claims::%chunk at player's location%} is "&2Spawn" or "&4Warzone":
+                send "{@P} &fCette zone n'est pas vendable !"
+                stop
+            else if {eFaction::Claims::%chunk at player's location%} isn't set:
+                send "{@P} &fCette zone appartient à personne !"
+                stop
+            else if {eFaction::Claims::%chunk at player's location%} isn't {eFaction::Player::%player%::Faction}:
+                send "{@P} &fCette zone appartient à &e%{eFaction::Claims::%chunk at player's location%}% &f!"
+                stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            delete {eFaction::Claims::%chunk at player's location%}
+            remove chunk at player's location from {eFaction::Faction::%{_f}%::Claim::*}
+            send "{@P} &fVous avez &cvendu &fune zone !"
+        else if arg 1 is "sethome" or "sh":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine" or "Vice-Capitaine" or "Officier":
+                send "{@P} &cVous n'êtes pas autorisé à définir le home de la faction !"
+                stop
+            if {eFaction::Claims::%chunk at player's location%} isn't set:
+                send "{@P} &fCette zone appartient à personne !"
+                stop
+            else if {eFaction::Claims::%chunk at player's location%} isn't {eFaction::Player::%player%::Faction}:
+                send "{@P} &fCette zone appartient à &e%{eFaction::Claims::%chunk at player's location%}% &f!"
+                stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            set {eFaction::Faction::%{_f}%::Home} to player's location
+            set {eFaction::Faction::%{_f}%::HomeChunk} to chunk at player's location
+            send "{@P} &fVous avez défini le &e/f home &fde votre faction !"
+        else if arg 1 is "home":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine" or "Vice-Capitaine" or "Officier" or "Membre":
+                send "{@P} &cVous n'êtes pas autorisé à définir le home de la faction !"
+                stop
+            set {_f} to {eFaction::Player::%player%::Faction}
+            if {eFaction::Faction::%{_f}%::Home} isn't set:
+                send "{@P} &cVotre &f/f sethome &cn'a pas été défini !"
+                stop
+            if {eFaction::Claims::%{eFaction::Faction::%{_f}%::HomeChunk}%} isn't {_f}:
+                send "{@P} &fCette zone ne vous appartient plus, elle a été surclaim !"
+                delete {eFaction::Faction::%{_f}%::Home}
+                stop
+            teleport player to {eFaction::Faction::%{_f}%::Home}
+            send "{@P} &fVous avez été teleporté au &e/f home &f!"
+        else if arg 1 is "ally":
+            if sender is console:
+                send "{@P} &cVous ne pouvez pas executer cette commande via la console !"
+                stop
+            if {eFaction::Player::%player%::Faction} isn't set:
+                send "{@P} &cVous devez être dans une faction !"
+                stop
+            if {eFaction::Player::%player%::FactionRank} isn't "Capitaine" or "Vice-Capitaine" or "Officier":
+                send "{@P} &cVous n'êtes pas autorisé à définir le home de la faction !"
+                stop
+            if arg 2 isn't set:
+                send "{@P} &c/f ally (faction)"
+                set {_f} to {eFaction::Player::%player%::Faction}
+                if size of {eFaction::Faction::%{_f}%::AllyInvitations::*} >= 1:
+                    send "&7(Demande d'alliance &creçu&7: &f%{eFaction::Faction::%{_f}%::AllyInvitations::*}%&7)"
+                else:
+                    send "&7(Demande d'alliance &creçu&7: &fAucune&7)"
+                if size of {eFaction::Faction::%{_f}%::AllyEnAttente::*} >= 1:
+                    send "&7(Demande d'alliance &aenvoyé&7: &f%{eFaction::Faction::%{_f}%::AllyEnAttente::*}%&7)"
+                else:
+                    send "&7(Demande d'alliance &aenvoyé&7: &fAucune&7)"
+                stop
+            if size of {eFaction::Faction::%{_f}%::Ally::*} >= 3:
+                send "{@P} &fVotre faction a atteint le maximum d'alliance !"
+                stop
+            if size of {eFaction::Faction::%arg 2%::Ally::*} >= 3:
+                send "{@P} &fCette faction a atteint le maximum d'alliance !"
+                stop
+            if {eFaction::Factions::Liste::*} contains arg 2:
+                if {eFaction::Faction::%{_f}%::AllyInvitations::*} contains arg 2:
+                    set {_f} to {eFaction::Player::%player%::Faction}
+                    add {_f} to {eFaction::Faction::%arg 2%::Ally::*}
+                    add arg 2 to {eFaction::Faction::%{_f}%::Ally::*}
+                    send "&a[Ally] &e%arg 2% est désormais en alliance avec vous !" to {eFaction::Faction::%{_f}%::Membres::*}
+                    send "&a[Ally] &e%{_f}% est désormais en alliance avec vous !" to {eFaction::Faction::%arg 2%::Membres::*}
+                    remove arg 2 from {eFaction::Faction::%{_f}%::AllyInvitations::*}
+                    remove arg 2 from {eFaction::Faction::%{_f}%::AllyEnAttente::*}
+                    remove {_f} from {eFaction::Faction::%arg 2%::AllyInvitations::*}
+                    remove {_f} from {eFaction::Faction::%arg 2%::AllyEnAttente::*}
+                else:
+                    set {_f} to {eFaction::Player::%player%::Faction}
+                    if {eFaction::Faction::%arg 2%::AllyInvitations::*} contains {_f}:
+                        send "{@P} &cUne demande a déjà été faite !"
+                    else if {eFaction::Faction::%{_f}%::AllyEnAttente::*} contains arg 2:
+                        remove arg 2 from {eFaction::Faction::%{_f}%::AllyEnAttente::*}
+                        send "{@P} &cUne erreur est survenu, l'&4AutoCorrecteur &ca résolu l'erreur !"
+                    else:
+                        add {_f} to {eFaction::Faction::%arg 2%::AllyInvitations::*}
+                        add arg 2 to {eFaction::Faction::%{_f}%::AllyEnAttente::*}
+                        send "{@P} &fVous avez demandé la faction &e%arg 2% &fen alliance !"
+                        send "{@P} &2[Ally] &a%player% &fa demandé &e%arg 2% en alliance &f!" to {eFaction::Faction::%{_f}%::Membres::*}
+
+                        loop {eFaction::Faction::%arg 2%::Membres::*}:
+                            send "{@P} &fVoulez-vous être en alliance avec &e%{_f}% &f?" to (loop-value parsed as player)
+                            if {eFaction::Player::%loop-value%::FactionRank} is "Capitaine" or "Vice-Capitaine" or "Officier":
+                                send formatted "<tooltip:&fConfirmez la demande !><cmd:/f ally %{eFaction::Player::%player%::Faction}%>    &a[Oui]<reset><tooltip:&eIgnorez ce message !>  &c[Non]<reset>" to (loop-value parsed as player)
+            else:
+                send "{@P} &cCette faction est introuvable !"
+        else if arg 1 is "neutral":
+        else if arg 1 is "enemy":
+
+        else:
+            send "{@P} &cSous-Commande inconnue !"
+            F_Help(player)
