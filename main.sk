@@ -1,0 +1,629 @@
+command /invsee <player>:
+	permission: op.invsee
+	trigger:
+		open arg-1's inventory to player
+
+#Commandes ADMIN
+command /mage <text> [<player>] [<text>]:
+	permission: op.mage
+	trigger:
+		if arg-1 is "manasee":
+			send "Mana de %arg-1% : %{mana::%arg-2%}%" to player
+		else if arg-1 is "checkspell":
+			send "Sort de %arg-2% : %{spell::%arg-2%}%"
+		else if arg-1 is "forcespell":
+			set {spell::%arg-2%} to arg-3
+		else if arg-1 is "setclass":
+			if {%arg-3%::*} contains "%player%":
+				send "Ce jouer appartient déjà à cette classe."
+			else:
+				add "%arg-2%" to {%arg-3%::*}
+				set {mana::%arg-2%} to 100
+		else if arg-1 is "removeclass":
+			if {%arg-3%::*} contains "%player%":
+				remove "%arg-2%" from {%arg-3%::*}
+			else:
+				send "Ce joueur ne fait pas parti de cette classe."
+		else if arg-1 is "voirclass":
+			if {archimages::*} contains "%arg-2%":
+				send "Le joueur %arg-2% est un Archimage"
+			else if {elitesmages::*} contains "%arg-2%":
+				send "Le joueur %arg-2% est un Mage d'Elite"
+			else if {mages::*} contains "%arg-2%":
+				send "Le joueur %arg-2% est un Mage"
+			else:
+				send "Le joueur %arg-2% est un simple Humain"
+		else if arg-1 is "baguette":
+			if {baguette::%player%} is set:
+				give 1 stick named "&f%{baguette::%player%}%" to player
+			else:
+				send "Tu n'as pas de baguette" to player
+		else if arg-1 is "help":
+			send "--------Menu d'aide--------"
+			send "/mage manasee"
+		else if arg-1 is "reset":
+			remove arg-2 from {mages::*}
+			remove arg-2 from {elitesmages::*}
+			remove arg-2 from {expertmages::*}
+			remove arg-2 from {archimages::*}
+			remove arg-2 from {empereurmages::*}
+			make server execute command "effect clear %arg-2%"
+			delete {wizardname::%arg-2%}
+			delete {baguette::%arg-2%}
+			remove "&f%arg-3%" from {wandlist::*}
+			delete {wizard::%arg-2%}
+			set {level::%arg-2%} to 1
+			set {exp::%arg-2%} to 0
+		else if arg-1 is "info":
+			send "&cInfo du joueur %arg-2%"
+			send "Niveau du joueur %{level::%arg-2%}%"
+			send "Exp du joueur %{exp::%arg-2%}%"
+			send "Nom du joueur %{wizardname::%arg-2%}%"
+			send "Nom de la baguette %{baguette::%arg-2%}%"
+		else if arg-1 is "start":
+			send "Vous débutez votre aventure de mage..."
+			set {startmage::%player%} to true
+
+on death:
+	if attacker is a player:
+		add 1 to {exp::%attacker%}
+	if damage was caused by lightning or fire:
+		set {_Attacker} to {Strike::%victim%}
+		if {wizard::%{_Attacker}%} is set:
+			add 1 to {exp::%{_Attacker}%}
+
+#zone de test
+
+command /expgive:
+	permission: exp.give
+	trigger:
+		add 100 to {exp::%player%}
+command /levelgive <player>:
+	permission: level.give
+	trigger:
+		add 10 to {level::%arg-1%}
+
+on right click:
+	if player's tool is blaze rod named "&fBalais":
+		if {wizard::%player%} is set:
+			if {mana::%player%} >= 5:
+				delete {fly::%player%}
+				push the player upwards at speed 0.5
+				push the player forwards at speed 1
+				remove 5 from {mana::%player%}
+				set {fly::%player%} to true
+on damage:
+	if damage is caused by fall:
+		if victim is a player:
+			cancel event
+	if victim is a player:
+		if {protectspell::%victim%} is true:
+			cancel event
+	if victim is in world "Spawn":
+		if attacker is not op:
+			cancel event
+
+command /balaisgive:
+	permission: balais.give
+	trigger:
+		give 1 blaze rod named "&fBalais" to player
+
+on right click on anvil:
+	if player is sneaking:
+		cancel event
+		create a new gui with virtual chest inventory named "Enclume de Mage" with 3 rows with shape "ttttttttt", "t---a---t" and "ttttttttt":
+			make gui slot "a" with amethyst shard named "&6Pierre de Magie" with lore "&fVous aurez besoin de 5 diamant et d'une émeraude pour la fabriquer":
+				if player's inventory contains 5 diamond:
+					if player's inventory contains 1 emerald:
+						remove 5 diamond from player's inventory
+						remove 1 emerald from player's inventory
+						give 1 amethyst shard named "&6Pierre de Magie" to player
+						delete {startmage::%player%}
+					else:
+						send "Il vous manque une émeraude pour faire ceci." to player
+				else:
+					send "Il vous manque des diamants pour faire ceci." to player
+			make gui slot "t" with black stained glass pane named "Enclume de Mage"
+		open last created gui to player
+on right click:
+	if player's tool is amethyst shard named "&6Pierre de Magie":
+		create a new gui with virtual chest inventory named "Zone de Mage" with 3 rows with shape "ttttttttt", "t-a-c-b-t" and "ttttttttt":
+			make gui slot "t" with black stained glass pane named "&fZone de Mage"
+			make gui slot "a" with stick named "&6Obtenir sa baguette" with lore "&fObtenez votre baguette, puis utilisez la sur une table d'enchantement":
+				if player's inventory contains stick named "&f%{baguette::%player%}%":
+					send "Vous avez déjà une baguette !" to player
+				else if player's inventory contains stick named "&fBaguette":
+					send "Vous avez déjà une baguette !" to player
+				else:
+					give 1 stick named "&fBaguette" to player
+			make gui slot "b" with blaze rod named "&6Obtenir son balais" with lore "&fObtenez votre balais pour voler !":
+				if {wizard::%player%} is set:
+					if player's inventory contains 1 blaze rod:
+						remove 1 blaze rod from player's inventory
+						give 1 blaze rod named "&fBalais" to player
+					else:
+						send "Vous avez besoin d'une blaze rod pour faire ceci !"
+				else:
+					send "Vous devez être un sorcier !" to player
+			make gui slot "c" with player's skull named "&6%{wizardname::%player%}%" with lore "&bBaguette: &f%{baguette::%player%}%", "":
+				create a new gui with virtual chest inventory named "Atelier du Mage" with 3 rows with shape "ttttttttt", "t-a-c-b-t" and "ttttttttt":
+					make gui slot "t" with black stained glass pane named "&fAtelier du Mage"
+					make gui slot "a" with nether star named "&6Boîte Magique":
+						if {wizard::%player%} is set:
+							if player's inventory contains 1 nether star:
+								remove 1 nether star from player's inventory
+								give 1 nether star named "&6Boîte Magique" to player
+							else:
+								send "Vous avez besoin d'une nether star pour faire ceci !"
+						else:
+							send "Vous devez être un sorcier !" to player
+				open last created gui to player
+		open last created gui to player
+
+on right click on red glass or blue glass:
+	if location of target block is {firstportalloc1::%player%}:
+		send action bar "&aTéléportation"
+		teleport player to {secportalloc1::%player%}
+	else if location of target block is {firstportalloc2::%player%}:
+		send action bar "&aTéléportation"
+		teleport player to {secportalloc1::%player%}
+	else if location of target block is {secportalloc1::%player%}:
+		send action bar "&aTéléportation"
+		teleport player to {firstportalloc1::%player%}
+	else if location of target block is {secportalloc2::%player%}:
+		send action bar "&aTéléportation"
+		teleport player to {firstportalloc1::%player%}
+
+
+
+
+on join:
+	set join message to "&7[&a+&7] &f%player%"
+on quit:
+	set quit message to "&7[&c-&7] &f%player%"
+
+command /voirclass:
+	trigger:
+		send "Archimages : %{archimages::*}%" to player
+		send "-------------------------------" to player
+		send "Mages d'Elite : %{elitesmages::*}%" to player
+		send "-------------------------------" to player
+		send "Mages : %{Mages::*}%" to player
+		send "-------------------------------" to player
+
+
+#Spells à ajouter:
+#Levitation -> Fait voler la cible pendant quelques secondes
+#Plant Control -> Fait pousser la plante ciblée
+#Morph -> Transforme le joueur en une créature puissante
+#Gravity Inversion -> Inverse temporairement la gravité dans une zone, faisant flotter les ennemis et objets vers le haut.
+#Summoning -> Invoque une créature pour aider le joueur
+#Camouflage -> Rend le joueur invisible pendant quelques secondes
+
+on join:
+	while player is online:
+		send action bar "&c♥ %player's health%/%max health of player%  %{colorspell::%player%}%  &b✷ %{mana::%player%}%/%{manalimit::%player%}%"
+		wait 10 ticks
+
+command /resetmana <player>:
+	trigger:
+		set {mana::%arg-1%} to 0
+
+on right click:
+	if player's tool is nether star named "&6Boîte Magique":
+		open ender chest of player to player
+
+
+on projectile hit:
+	kill projectile
+
+on right click:
+	if player's tool is feather:
+		make the player shoot an item projectile of iron pickaxe
+
+command /setitem <text>:
+	trigger:
+		set {%arg-1%} to player's tool
+command /addallies <player>:
+	trigger:
+		add arg-1 to {allies::%player%::*}
+command /removeallies <player>:
+	trigger:
+		remove arg-1 from {allies::%player%::*}
+command /allies <text> [<player>]:
+	trigger:
+		if arg-1 is "add":
+			if arg-2 is set:
+				if {allies::%player%::*} contains arg-2:
+					send "&cLe joueur %arg-2% fait déjà parti de vos alliés !"
+				else:
+					add arg-2 to {allies::%player%::*}
+					send "Le joueur %arg-2% a été ajouté à vos alliés !"
+			else:
+				send "Utilisation incorrecte: /allies add <player>"
+		if arg-1 is "remove":
+			if arg-2 is set:
+				if {allies::%player%::*} contains arg-2:
+					remove arg-2 from {allies::%player%::*}
+					send "Le joueur %arg-2% a été retiré de vos alliés !"
+				else:
+					send "Le joueur %arg-2% ne fait pas parti de vos alliés !"
+			else:
+				send "Utilisation incorrecte: /allies remove <player>"
+		if arg-1 is "list":
+			send "%{allies::%player%::*}%" to player
+function glow(p: player):
+	make server execute command "/eglow set %{_p}% aqua"
+	send action bar "&aBouclier activé !" to {_p}
+	set {protectspell::%{_p}%} to true
+	wait 4 seconds
+	delete {protectspell::%{_p}%}
+	make server execute command "/eglow set %{_p}% disable"
+	send action bar "&cBouclier désactivé !" to {_p} 
+
+command /testpartic:
+	trigger:
+		play blue dust at player
+
+command /lastpos <player>:
+	trigger:
+		teleport arg-1 to {lastpos::%arg-1%}
+on death:
+	set {lastpos::%victim%} to victim's location
+
+on teleport:
+	set {lastpos::%player%} to player's location
+
+command /setmenu:
+	trigger:
+		set slot 8 of player to nether star named "&fMenu"
+
+command /menu:
+	trigger:
+		create a new gui with id "mainMenu" with virtual chest inventory named ":offset_-54::main_menu:" with 3 rows with shape "ttttxtttz", "y-abcde-t" and "ttttttttt":
+			make gui slot "a" with customitem "forcebook" named "&c✯ Force" with lore "&7Niveau : &f%{forcelevel::%player%}%":
+				if {skillpoints::%player%} >= 1:
+					remove 1 from {skillpoints::%player%}
+					add 1 to {forcelevel::%player%}
+					make player execute command "/menu"
+				else:
+					send "&cVous ne possédez pas suffisamment de points de capacités !"
+			make gui slot "b" with customitem "mindbook" named "&b✯ Intelligence" with lore "&7Niveau : &f%{mindlevel::%player%}%":
+				if {skillpoints::%player%} >= 1:
+					remove 1 from {skillpoints::%player%}
+					add 1 to {mindlevel::%player%}
+					make player execute command "/menu"
+				else:
+					send "&cVous ne possédez pas suffisamment de points de capacités !"
+			make gui slot "c" with customitem "vitessebook" named "&e✯ Dextérité" with lore "&7Niveau : &f%{dexteritylevel::%player%}%":
+				if {skillpoints::%player%} >= 1:
+					remove 1 from {skillpoints::%player%}
+					add 1 to {dexteritylevel::%player%}
+					make player execute command "/menu"
+				else:
+					send "&cVous ne possédez pas suffisamment de points de capacités !"
+			make gui slot "d" with customitem "resistancebook" named "&3✯ Résistance" with lore "&7Niveau : &f%{resistancelevel::%player%}%":
+				if {skillpoints::%player%} >= 1:
+					remove 1 from {skillpoints::%player%}
+					add 1 to {resistancelevel::%player%}
+					make player execute command "/menu"
+				else:
+					send "&cVous ne possédez pas suffisamment de points de capacités !"
+			make gui slot "e" with customitem "agilitybook" named "&a✯ Agilité" with lore "&7Niveau : &f%{agilitylevel::%player%}%":
+				if {skillpoints::%player%} >= 1:
+					remove 1 from {skillpoints::%player%}
+					add 1 to {agilitylevel::%player%}
+					make player execute command "/menu"
+				else:
+					send "&cVous ne possédez pas suffisamment de points de capacités !"
+			make gui slot "x" with customitem "crystalskill" named "&7Crystall de Skill" with lore "&fVous possédez &c%{skillpoints::%player%}% &fpoints de skill"
+			make gui slot "y" with redstone named "&7Arbre de Compétences":
+				if {class::%player%} is "Guerrier":
+				if {class::%player%} is "Archer":
+				if {class::%player%} is "Mage":
+					make player execute command "/skilltree"
+			make gui slot "z" with player's skull named "&fInfo de %player%" with lore "&7Grade: &cSoon..", "", "&7Niveau : &f%{level::%player%}%", "&7Classe : &f%{class::%player%}%", "&7Quêtes : &cSoon.." and "&7XP : &f%{expourcentage::%player%}%%%"
+		open last created gui to player
+
+command /skilltree:
+	trigger:
+		if {class::%player%} is "Mage":
+			create a new gui with id "SkillTreeMage.%player%" with virtual chest inventory named ":offset_-8::test_menu:" with 6 rows with shape "----a----", "----x----", "----b-c--", "----x----", "----d----" and "--f-z----":
+				make gui slot "a" with fire charge named "&c&lBoule de Feu" with lore "&7Tire une boule de feu infligeant des", "&7dégats lorsqu'elle touche une cible", "", "&b☼  &7Mana : &f30", "&c💥 &7Dégats : &f140%% DPS", "&7Points de Compétences :&f 1":
+					if {abilitypoints::%player%} >= 1:
+						set {bouledefeu::%player%} to true
+						remove 1 from {abilitypoints::%player%}
+						make player execute command "/skilltree"
+						set {compospell::%player%::1} to "Boule de Feu"
+					else:
+						send "Vous ne possédez pas suffisamment de points de compétence"
+				make gui slot "x" with end rod
+				make gui slot "b" with experience bottle named "Amélioration" with lore "NOPE":
+					if {bouledefeu::%player%} is true:
+						if {abilitypoints::%player%} >= 1:
+							set {upgrade1::%player%} to true
+							remove 1 from {abilitypoints::%player%}
+							make player execute command "/skilltree"
+						else:
+							send "Vous ne possédez pas suffisamment de points de compétence"
+					else:
+						send "Vous devez d'abord débloquer le sort ""Boule de feu !"""
+				make gui slot "c" with experience bottle named "Amélioration" with lore "NOPE":
+					if {upgrade1::%player%} is true:
+						if {abilitypoints::%player%} >= 1:
+							set {upgrade2::%player%} to true
+							remove 1 from {abilitypoints::%player%}
+							make player execute command "/skilltree"
+						else:
+							send "Vous ne possédez pas suffisamment de points de compétence"
+					else:
+						send "Vous devez d'abord débloquer la première amélioration !"
+				make gui slot "d" with shield named "&c&lBouclier Magique" with lore "&7Invoque un bouclier magique qui entoure", "&7le joueur, le protégeant temporairement", "", "&b☼  &7Mana : &f35", "&a★ &7Durée : &f2.5s", "&7Points de Compétences :&f 1":
+					if {upgrade2::%player%} is true:
+						if {abilitypoints::%player%} >= 1:
+							set {magicshield::%player%} to true
+							remove 1 from {abilitypoints::%player%}
+							make player execute command "/skilltree"
+							set {compospell::%player%::2} to "Bouclier"
+						else:
+							send "Vous ne possédez pas suffisamment de points de compétence"
+					else:
+						send "Vous devez d'abord débloquer la deuxième amélioration !"
+				make gui slot "z" with customitem "crystalskill" named "&7Crystall de Compétences" with lore "&7Points disponibles : &c%{abilitypoints::%player%}%"
+				make gui slot "f" with customitem "icon_above_blue" named "&fPage suivante":
+					make player execute command "/skilltree2"
+			if {bouledefeu::%player%} is true:
+				edit gui last gui:
+					make gui slot "a" with fire charge named "&a&lBoule de Feu" with lore "&7Tire une boule de feu infligeant des", "&7dégats lorsqu'elle touche une cible", "", "&b☼  &7Mana : &f30", "&c💥 &7Dégats : &f140%% DPS", "&7Points de Compétences :&f 1", "&cVous possédez déjà cette compétence !"
+			if {upgrade1::%player%} is true:
+				edit gui last gui:
+					make gui slot "b" with experience bottle named "Amélioration" with lore "YES"
+			if {upgrade2::%player%} is true:
+				edit gui last gui:
+					make gui slot "c" with experience bottle named "Amélioration" with lore "YES"
+			if {magicshield::%player%} is true:
+				edit gui last gui:
+					make gui slot "d" with shield named "&a&lBouclier Magique" with lore "&7Invoque un bouclier magique qui entoure", "&7le joueur, le protégeant temporairement", "", "&b☼  &7Mana : &f35", "&a★ &7Durée : &f2.5s", "&7Points de Compétences :&f 1", "&cVous possédez déjà cette compétence !"
+			open gui with id "SkillTreeMage.%player%" to player
+command /skilltree2:
+	trigger:
+		if {class::%player%} is "Mage":
+			create a new gui with id "SkillTreeMage2.%player%" with virtual chest inventory named ":offset_-8::test_menu:" with 6 rows with shape "----a----", "----x----", "--c-b-d--", "--x-x-x--", "----e----" and "--f-z----":
+				make gui slot "a" with experience bottle named "Amélioration" with lore "NOPE":
+					if {magicshield::%player%} is true:
+						if {abilitypoints::%player%} >= 1:
+							set {upgrade3::%player%} to true
+							remove 1 from {abilitypoints::%player%}
+							make player execute command "/skilltree2"
+						else:
+							send "Vous ne possédez pas suffisamment de points de compétence"
+					else:
+						send "Vous devez d'abord débloquer le sort ""Bouclier Magique"" !"
+				make gui slot "x" with end rod
+				make gui slot "b" with experience bottle named "Amélioration" with lore "NOPE":
+					if {upgrade3::%player%} is true:
+						if {abilitypoints::%player%} >= 1:
+							set {upgrade4::%player%} to true
+							remove 1 from {abilitypoints::%player%}
+							make player execute command "/skilltree2"
+						else:
+							send "Vous ne possédez pas suffisamment de points de compétence"
+					else:
+						send "Vous devez d'abord débloquer la troisième amélioration !"
+				make gui slot "c" with fire charge named "&c&lSouffle du Dragon" with lore "&7Libère un puissant souffle de flammes,", "&7infligeant des dégâts de feu continus et", "&7appliquant des effets de brûlure aux ennemis", "", "&b☼  &7Mana : &f70", "&c💥 &7Dégats : &f180%% DPS", "&7Points de Compétences :&f 2": 
+					if {upgrade4::%player%} is true:
+						if {abilitypoints::%player%} >= 2:
+							set {soufflespell::%player%} to true
+							remove 2 from {abilitypoints::%player%}
+							set {compospell::%player%::1} to "DragonBreath"
+							make player execute command "/skilltree2"
+						else:
+							send "Vous ne possédez pas suffisamment de points de compétence"
+					else:
+						send "Vous devez d'abord débloquer la quatrième amélioration !"
+				make gui slot "d" with ice named "&c&lLance de Glace" with lore "&7Projette une lance de Glace puissante,", "&7infligeant des dégâts importants et", "&7paralysant l'ennemi pendant une courte durée", "", "&b☼  &7Mana : &f30", "&c💥 &7Dégats : &f120%% DPS", "&a★ &7Durée : &f3s", "&7Points de Compétences :&f 2":
+					if {upgrade4::%player%} is true:
+						if {abilitypoints::%player%} >= 2:
+							set {lancespell::%player%} to true
+							set {compospell::%player%::3} to "IceSpear"
+							remove 2 from {abilitypoints::%player%}
+							make player execute command "/skilltree2"
+						else:
+							send "Vous ne possédez pas suffisamment de points de compétence"
+					else:
+						send "Vous devez d'abord débloquer la quatrième amélioration !"
+			if {upgrade3::%player%} is true:
+				edit gui last gui:
+					make gui slot "a" with experience bottle named "Amélioration" with lore "YES"
+			if {upgrade4::%player%} is true:
+				edit gui last gui:
+					make gui slot "b" with experience bottle named "Amélioration" with lore "YES"
+			if {soufflespell::%player%} is true:
+				edit gui last gui:
+					make gui slot "c" with fire charge named "&a&lSouffle du Dragon" with lore "&7Libère un puissant souffle de flammes,", "&7infligeant des dégâts de feu continus et", "&7appliquant des effets de brûlure aux ennemis", "", "&b☼  &7Mana : &f70", "&c💥 &7Dégats : &f180%% DPS", "&7Points de Compétences :&f 2", "&cVous possédez déjà cette compétence !"
+			if {lancespell::%player%} is true:
+				edit gui last gui:
+					make gui slot "d" with ice named "&a&lLance de Glace" with lore "&7Projette une lance de Glace puissante,", "&7infligeant des dégâts modérés et", "&7paralysant l'ennemi pendant une courte durée", "", "&b☼  &7Mana : &f30", "&c💥 &7Dégats : &f120%% DPS", "&a★ &7Durée : &f3s", "&7Points de Compétences :&f 2", "&cVous possédez déjà cette compétence !"
+			open gui with id "SkillTreeMage2.%player%" to player
+command /removebl:
+	trigger:
+		delete {bouledefeu::%player%}
+		delete {upgrade1::%player%}
+		delete {upgrade2::%player%}
+		delete {magicshield::%player%}
+		delete {upgrade3::%player%}
+		delete {upgrade4::%player%}
+		delete {soufflespell::%player%}
+		delete {lancespell::%player%}
+command /addspeed:
+	trigger:
+		apply potion of speed of tier 1 without particles to the player for 10 seconds
+
+# Force / Vigueur / Intelligence / Vitesse / Résistance / Agilité
+command /iaskriptgetitem <text> [<number=1>]:
+	trigger:
+		set {%player%.item} to null
+		set {%player%.item} to customitem arg 1
+		if {%player%.item} is null:
+			message "Custom item %arg 1% not found"
+		else:
+			give player arg 2 of {%player%.item} named "&f%{baguette::%player%}%"
+			message "Obtained custom item %arg 1%"
+
+command /giveweapon <text>:
+	trigger:
+		if arg 1 is "abyssword":
+			give player 1 of customitem "abyss_pack_sword" named "&6Epée des Abysses" with lore "&fForce : &c&l20", "&fIntelligence : &b&l10", "" and "&6★★★★★"
+			broadcast "LOL"
+		if arg-1 is "abyssbow":
+			give player 1 of customitem "abyss_pack_bow" named "&6Arc des Abysses" with lore "&fAgilité : &a&l20", "&fForce : &c&l10", "" and "&6★★★★★"
+		if arg-1 is "testitem":
+			give player 1 netherite sword named "&5Epee de Test" with lore "&fForce : &c&l10", "&fIntelligence : &b&l20", "" and "&6★★★★★"
+		if arg-1 is "testitem2":
+			give player 1 netherite sword named "&5Epee de Test2" with lore "&fForce : &c&l16", "&fIntelligence : &b&l17", "" and "&6★★★★★"
+		if arg-1 is "beginnersword":
+			give player 1 of customitem "beginnersword" named "&7Epée du Débutant" with lore "&fForce : &c&l1", "&fIntelligence : &b&l1", "" and "&7★☆☆☆☆"
+		if arg-1 is "beginnerwand":
+			give player 1 of customitem "mysword" named "&7Baguette du Débutant" with lore "&fIntelligence: &b&l1", "&fDégâts : &c5", "" and "&7★☆☆☆☆ &lCOMMUN"
+#Système de classes:
+#★☆
+command /class:
+	trigger:
+		create a new gui with id "ClassSelect" with virtual chest inventory named "Sélection de Classe" with 3 rows  with shape "ttttttttt", "t-a-b-c-t", and "ttttttttt":
+			make gui slot "t" with black stained glass pane named "&fSélection de Classe"
+			make gui slot "a" with customitem "abyss_pack_sword" named "&cGuerrier":
+				if {class::%player%} is not set:
+					send "&fVous avez choisis la Classe &cGuerrier &f!" to player
+					set {class::%player%} to "Guerrier"
+					teleport player to {spawn}
+				else:
+					send "&cVous possédez déjà une classe..."
+			make gui slot "b" with customitem "mysword" named "&bMage":
+				if {class::%player%} is not set:
+					send "&fVous avez choisis la Classe &bMage &f!" to player
+					set {class::%player%} to "Mage"
+					teleport player to {spawn}
+				else:
+					send "&cVous possédez déjà une classe..."
+			make gui slot "c" with customitem "abyss_pack_bow" named "&aArcher":
+				if {class::%player%} is not set:
+					send "&fVous avez choisis la Classe &aArcher &f!" to player
+					set {class::%player%} to "Archer"
+					teleport player to {spawn}
+				else:
+					send "&cVous possédez déjà une classe..."
+		open gui with id "ClassSelect" to player
+
+command /resetclass <player>:
+	permission: resetclass
+	trigger:
+		delete {class::%arg-1%}
+		set {level::%arg-1%} to 1
+		set {exp::%arg-1%} to 1
+		set {mana::%arg-1%} to 100
+		set {manalimit::%arg-1%} to 100
+		set {manaspeed::%arg-1%} to 2
+
+command /statgive <player> <text> <integer>:
+	permission: statgive
+	trigger:
+		if arg-2 is "force":
+			add arg-3 to {forcelevel::%arg-1%}
+			broadcast "%{forcelevel::%arg-1%}%"
+		if arg-2 is "mind":
+			add arg-3 to {mindlevel::%arg-1%}
+			broadcast "%{mindlevel::%arg-1%}%"
+		if arg-2 is "agility":
+			add arg-3 to {agilitylevel::%arg-1%}
+			broadcast "%{agilitylevel::%arg-1%}%"
+
+command /statreset:
+	trigger:
+		set {mindlevel::%player%} to 1
+		set {forcelevel::%player%} to 1
+		set {agilitylevel::%player%} to 1
+on chat:
+	cancel event
+	if {currenttitle::%player%} is not set:
+		broadcast "%player% &7- &f%message%"
+	else if {currenttitle::%player%} is "capitaine":
+		if player is "_Seven__":
+			broadcast ":vip: :capitaine: %player% &7- &f%message%"
+		else:
+			broadcast ":capitaine: %player% &7- &f%message%"
+	else if {currenttitle::%player%} is "roidespirates":
+		if player is "_Seven__":
+			broadcast ":vip: :roidespirates: %player% &7- &f%message%"
+		else:
+			broadcast ":roidespirates: %player% &7- &f%message%"
+
+command /titles:
+	trigger:
+		create a new gui with id "titles.%player%" with virtual chest inventory named "Titres" with 3 rows with shape "ttttttttt", "tab----zt" and "ttttttttt":
+			make gui slot "t" with black stained glass pane named "&fTitres"
+			make gui slot "a" with redstone named "&5Capitaine":
+				if {currenttitle::%player%} is "capitaine":
+					send "&cVous avez déjà activé ce titre !"
+				else:
+					set {currenttitle::%player%} to "capitaine"
+					send "&aVous avez activé le titre : :capitaine:"
+			make gui slot "b" with diamond named "&cRoi des Pirates":
+				if {currenttitle::%player%} is "roidespirates":
+					send "&cVous avez déjà activé ce titre !"
+				else:
+					set {currenttitle::%player%} to "roidespirates"
+					send "&aVous avez activé le titre : :roidespirates:"
+			make gui slot "z" with customitem "icon_cancel" named "&4Désactiver":
+				if {currenttitle::%player%} is set:
+					delete {currenttitle::%player%}
+					send "&aVous avez bien désactivé votre titre !"
+				else:
+					send "&cVous n'avez aucun titre activé !"
+		open last created gui to player
+command /manaspeed <integer>:
+	trigger:
+		set {manaspeed::%player%} to arg-1
+
+command /manalimit <player> <integer>:
+	trigger:
+		set {manalimit::%arg-1%} to arg-2
+		set {mana::%arg-1%} to arg-2
+
+
+command /skillpoints <integer>:
+	trigger:
+		set {skillpoints::%player%} to arg-1
+command /abilitypoints <player> <integer>:
+	trigger:
+		set {abilitypoints::%arg-1%} to arg-2
+command /levelreset <player>:
+	trigger:
+		set {level::%arg-1%} to 0
+		set max health of arg-1 to 10
+
+command /loadingzone:
+	trigger:
+		set {loadingzone} to location of player
+
+command /loadingtp:
+	trigger:
+		teleport player to {loadingzone}
+
+on quit:
+	set {lastpos::%player%} to location of player
+
+on join:
+	teleport player to {loadingzone}
+	wait 10 seconds
+	teleport player to {lastpos::%player%}
+
+on first join:
+	teleport player to {loadingzone}
+	wait 10 seconds
+	make player execute command "/class"
+
+command /simulatefirstjoin:
+	trigger:
+		teleport player to {loadingzone}
+		wait 10 seconds
+		make player execute command "/class"
